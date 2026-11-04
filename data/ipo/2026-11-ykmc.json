@@ -2,7 +2,7 @@
   "slug": "2026-11-ykmc",
   "name": "영광와이케이엠씨",
   "date": "2026.11.04",
-  "one_liner": "수요는 최고, 첫날 매물은 숙제",
+  "one_liner": "수요는 최고, 시장과 첫날 매물은 숙제",
   "thumbnail": {
     "tag": "공모주",
     "headline": "청약할까? 말까?",
@@ -12,7 +12,7 @@
   "brick_check": [
     {"label": "수요", "desc": "기관 경쟁률", "grade": "A", "value": "1,163.35 : 1"},
     {"label": "섹터", "desc": "테마", "grade": "A", "value": "반도체 장비 부품"},
-    {"label": "시황", "desc": "시장 분위기", "grade": "B", "value": "코스닥 +1.5%, 외국인 매도"},
+    {"label": "시황", "desc": "시장 분위기", "grade": "C", "value": "5일도 20일도 하락, 찬바람 구간"},
     {"label": "확약", "desc": "의무보유확약", "grade": "C", "value": "7.21%"},
     {"label": "유통물량", "desc": "상장일 거래 가능", "grade": "C", "value": "약 555억 · 34.81%"}
   ],

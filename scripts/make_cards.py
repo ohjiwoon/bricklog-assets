@@ -64,10 +64,6 @@ def header(d, img, title, name, W):
     paste_char(img, 100, (W - 230, 46))
 
 
-def footer(d, H):
-    d.text((60, H - 60), "브릭로그 · 투자 권유가 아닌 기록입니다", font=F("Medium", 22), fill=MUTED)
-
-
 def fit(d, text, weight, size, max_w):
     while size > 20 and d.textlength(text, font=F(weight, size)) > max_w:
         size -= 2
@@ -75,7 +71,7 @@ def fit(d, text, weight, size, max_w):
 
 
 def brick_check(c, out):
-    W, H = 1080, 1080
+    W, H = 1080, 1050
     img = Image.new("RGBA", (W, H), BEIGE); d = ImageDraw.Draw(img)
     header(d, img, "BRICK CHECK", c["name"], W)
     y = 190
@@ -94,12 +90,11 @@ def brick_check(c, out):
     msg = c["one_liner"]; fs = fit(d, msg, "ExtraBold", 36, W - 140)
     tw = d.textlength(msg, font=F("ExtraBold", fs))
     d.text(((W - tw) / 2, y + 27), msg, font=F("ExtraBold", fs), fill=WHITE)
-    footer(d, H)
     img.convert("RGB").save(f"{out}/card1_brick_check.png")
 
 
 def ipo_info(c, out):
-    W, H = 1080, 900
+    W, H = 1080, 840
     img = Image.new("RGBA", (W, H), BEIGE); d = ImageDraw.Draw(img)
     header(d, img, "청약 한눈에", c["name"], W)
     x0, y0, cw, ch, gap = 40, 190, 490, 190, 20
@@ -111,12 +106,11 @@ def ipo_info(c, out):
         d.text((cx + 36, cy + 36), it["label"], font=F("SemiBold", 28), fill=WHITE if hot else MUTED)
         fs = fit(d, it["value"], "ExtraBold", 40, cw - 72)
         d.text((cx + 36, cy + 92), it["value"], font=F("ExtraBold", fs), fill=WHITE if hot else BROWN)
-    footer(d, H)
     img.convert("RGB").save(f"{out}/card2_ipo_info.png")
 
 
 def float_chart(c, out):
-    W, H = 1080, 900
+    W, H = 1080, 870
     img = Image.new("RGBA", (W, H), BEIGE); d = ImageDraw.Draw(img)
     header(d, img, "풀리는 물량", c["name"], W)
     data = c["float"]["steps"]
@@ -138,7 +132,6 @@ def float_chart(c, out):
         d.text((x + bw / 2 - tw / 2, base + 14), lab, font=F("Medium", 21), fill=MUTED)
     cap = c["float"]["caption"]; fs = fit(d, cap, "SemiBold", 26, W - 140)
     d.text((70, 808), cap, font=F("SemiBold", fs), fill=BROWN)
-    footer(d, H + 10)
     img.convert("RGB").save(f"{out}/card3_float.png")
 
 
