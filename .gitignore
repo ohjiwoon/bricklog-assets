@@ -1,2 +1,9 @@
 .cache/
 __pycache__/
+data/ipo/raw/
+clips/
+naver-export/
+.DS_Store
+.venv/
+posts/*.naver.json
+posts/*.copy.html
