@@ -125,7 +125,7 @@ def plain(prop):
 def make_page(page):
     props = page["properties"]
     title = plain(props["제목"])
-    status = (props["상태"].get("status") or {}).get("name", "")
+    status = (props["상태"].get("select") or props["상태"].get("status") or {}).get("name", "")
     post = parse(page_to_md(page["id"]))
     os.makedirs(PAGES, exist_ok=True)
     path = os.path.join(PAGES, page["id"].replace("-", "")[:8] + ".copy.html")
