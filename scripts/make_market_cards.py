@@ -1,4 +1,4 @@
-"""시황 카드 생성기. 썸네일 + 하루 숫자 카드 1장.
+"""시황 카드 생성기. 썸네일 + 하루 숫자 카드 1장(indices가 있을 때).
 
 사용법:
     python3 scripts/make_market_cards.py data/market/<slug>.json   # → market/<slug>/
@@ -77,7 +77,9 @@ def main(path):
         c = json.load(f)
     out = os.path.join(ROOT, "market", c["slug"])
     os.makedirs(out, exist_ok=True)
-    thumbnail(c, out); day_card(c, out)
+    thumbnail(c, out)
+    if "indices" in c:  # 주간 시황은 썸네일만 만들 때가 있다
+        day_card(c, out)
     print("saved to", out)
 
 
