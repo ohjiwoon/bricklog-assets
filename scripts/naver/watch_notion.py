@@ -178,13 +178,15 @@ def install():
     for name in ("watch_notion.py", "copy_page.py", "format_post.py", "sync_dashboard.py", "../collect_38.py"):
         shutil.copy(os.path.join(here, name), BIN)
     os.makedirs(os.path.dirname(AGENT), exist_ok=True)
-    # 복사 페이지는 1분, 대시보드는 38 부담을 줄이려 1시간 간격
-    for label, path, script, interval, log in ((LABEL, AGENT, "watch_notion.py", 60, LOG),
-                                               (DASH_LABEL, DASH_AGENT, "sync_dashboard.py", 3600, DASH_LOG)):
+    # 복사 페이지는 1분 간격. 대시보드는 38 부담을 줄이려 매시 5분에 돌리고,
+    # 잠자기로 놓친 회차는 깨어날 때 한 번 몰아서 돈다(StartInterval은 잠자는 동안 멈춘다)
+    for label, path, script, timing, log in ((LABEL, AGENT, "watch_notion.py", {"StartInterval": 60}, LOG),
+                                             (DASH_LABEL, DASH_AGENT, "sync_dashboard.py",
+                                              {"StartCalendarInterval": {"Minute": 5}}, DASH_LOG)):
         subprocess.run(["launchctl", "unload", path], capture_output=True)
         with open(path, "wb") as f:
             plistlib.dump({"Label": label, "ProgramArguments": [sys.executable, os.path.join(BIN, script), "once"],
-                           "StartInterval": interval, "RunAtLoad": True, "StandardOutPath": log, "StandardErrorPath": log}, f)
+                           **timing, "RunAtLoad": True, "StandardOutPath": log, "StandardErrorPath": log}, f)
         subprocess.run(["launchctl", "load", path], check=True)
 
 
@@ -203,7 +205,7 @@ def setup():
             raise SystemExit("토큰이 맞지 않습니다. setup을 다시 실행하세요.")
         raise SystemExit("토큰은 저장했습니다. 브릭로그 콘텐츠 DB에 연동을 연결한 뒤 setup을 다시 실행하세요.")
     install()
-    print("연결 완료. 1분마다 최종 체크를, 1시간마다 대시보드를 확인합니다.")
+    print("연결 완료. 1분마다 최종 체크를, 매시 5분에 대시보드를 확인합니다.")
 
 
 def uninstall():
