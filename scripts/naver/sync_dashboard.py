@@ -1,9 +1,11 @@
-"""38커뮤니케이션 공모 일정을 노션 '공모주 캘린더'에 맞추고, 대시보드 숫자 칸을 고쳐 쓴다.
+"""공모 일정을 노션 '공모주 캘린더'에 맞추고, 대시보드 숫자 칸을 고쳐 쓴다.
 
 사용법:
     python3 scripts/naver/sync_dashboard.py once   # 지금 한 번 갱신
 
-자동 실행은 watch_notion.py setup 이 1시간 간격으로 등록한다. 토큰은 watch_notion과 같은 파일을 쓴다.
+자료 순서: DART 증권신고서(원본)를 먼저 쓰고, DART에 없는 칸(상장일·시장·업종, 못 읽은 확약)만 38로 채운다.
+종목 목록은 38에서 받는다. 38이 막히면 캘린더에 있던 종목만 DART로 갱신하고 나머지 칸은 그대로 둔다.
+자동 실행은 watch_notion.py setup 이 매시 5분에 등록한다. 토큰은 watch_notion과 같은 파일을 쓴다.
 38 요청은 정직한 UA로 2초 간격, 진행 중인 종목만 상세를 읽는다. 차단되면 우회하지 않고 멈춘다.
 """
 import datetime as dt
@@ -14,9 +16,11 @@ import re
 import subprocess
 import sys
 import urllib.error
+import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import collect_38
+import collect_dart
 from watch_notion import HOME, call, plain
 
 collect_38.RAW = os.path.join(HOME, "raw")  # 백그라운드에서는 Desktop에 쓰지 않는다
@@ -68,6 +72,47 @@ def from_38(raw):
             "competition": competition,
             "lockup": number(raw["lockup_rate"]) if competition is not None else None,
             "market": MARKETS.get(raw["market"] or ""), "industry": raw["industry"] or ""}
+
+
+def from_row(row):
+    """38을 못 읽을 때 캘린더에 이미 있는 값을 바탕으로 쓴다."""
+    p = row["properties"]
+
+    def days(key):
+        d = p[key]["date"] or {}
+        return [dt.date.fromisoformat(v[:10]) for v in (d.get("start"), d.get("end")) if v]
+
+    return {"name": plain(p["종목"]), "subscription": days("청약일"), "demand": days("수요예측"),
+            "refund": days("환불일"), "listing": days("상장일"), "underwriter": plain(p["증권사"]),
+            "band": plain(p["희망 공모가"]), "offer": p["확정 공모가"]["number"],
+            "competition": p["기관 경쟁률"]["number"], "lockup": p["확약(%)"]["number"],
+            "market": (p["시장"]["select"] or {}).get("name"), "industry": plain(p["업종"])}
+
+
+DART_KEYS = ("subscription", "refund", "demand", "underwriter", "band", "offer", "competition", "lockup")
+
+
+def from_dart(name):
+    try:
+        return collect_dart.detail(name)
+    except (SystemExit, OSError, ValueError, KeyError, zipfile.BadZipFile) as e:
+        print("DART 실패:", name, e)
+        return None
+
+
+def merge(ipo, dart):
+    """DART가 원본이라 먼저 쓰고, DART가 비운 칸만 38 값을 둔다. 둘이 다르면 로그에 남긴다."""
+    if not dart:
+        return ipo
+    out = dict(ipo)
+    for key in DART_KEYS:
+        value = dart.get(key)
+        if value in (None, "", []):
+            continue
+        if key != "underwriter" and ipo.get(key) not in (None, "", []) and ipo[key] != value:
+            print("DART≠38", ipo["name"], key, ipo[key], "→", value)
+        out[key] = value
+    return out
 
 
 def date_prop(values):
@@ -124,7 +169,12 @@ def sync_calendar(day, posts):
     rows = unique({},
                   [(int(r["properties"]["38 번호"]["number"]), r) for r in query_all(CAL_DB)
                    if r["properties"]["38 번호"]["number"] is not None])
-    targets = [int(no) for no, labels in collect_38.listing().items() if "스팩" not in labels[0]]
+    try:
+        targets = [int(no) for no, labels in collect_38.listing().items() if "스팩" not in labels[0]]
+        blocked = False
+    except SystemExit as e:  # 38이 막히면 있던 종목만 DART로 갱신한다
+        print("38 목록 실패:", e)
+        targets, blocked = [], True
     # 목록에서 빠졌어도 상장 전이거나 상장 1주일 이내인 종목은 계속 갱신한다
     for no, row in rows.items():
         listing = (row["properties"]["상장일"]["date"] or {}).get("start")
@@ -133,8 +183,18 @@ def sync_calendar(day, posts):
             targets.append(no)
     ipos = []
     for no in targets:
-        _, raw = collect_38.detail(str(no))
-        ipo = from_38(raw)
+        ipo = None
+        if not blocked:
+            try:
+                ipo = from_38(collect_38.detail(str(no))[1])
+            except SystemExit as e:  # 한 번 막히면 남은 종목은 38에 다시 묻지 않는다
+                print("38 상세 실패:", no, e)
+                blocked = True
+        if ipo is None:
+            if no not in rows:
+                continue
+            ipo = from_row(rows[no])
+        ipo = merge(ipo, from_dart(ipo["name"]))
         props = properties(no, ipo, day)
         linked = my_posts(ipo["name"], posts)
         if linked:
@@ -276,8 +336,8 @@ def once():
     posts = query_all(CONTENT_DB)
     try:
         ipos = sync_calendar(day, posts)
-    except SystemExit as e:  # 38 수집 실패는 숫자 칸 갱신을 막지 않는다
-        print("38 수집 실패:", e)
+    except SystemExit as e:  # 일정 수집 실패는 숫자 칸 갱신을 막지 않는다
+        print("일정 수집 실패:", e)
         ipos = []
     sync_events(ipos, posts)
     write_summary(summary(ipos, posts, day))

@@ -175,7 +175,7 @@ def once():
 def install():
     os.makedirs(BIN, exist_ok=True)
     here = os.path.dirname(os.path.abspath(__file__))
-    for name in ("watch_notion.py", "copy_page.py", "format_post.py", "sync_dashboard.py", "../collect_38.py"):
+    for name in ("watch_notion.py", "copy_page.py", "format_post.py", "sync_dashboard.py", "../collect_38.py", "../collect_dart.py"):
         shutil.copy(os.path.join(here, name), BIN)
     os.makedirs(os.path.dirname(AGENT), exist_ok=True)
     # 복사 페이지는 1분 간격. 대시보드는 38 부담을 줄이려 매시 5분에 돌리고,
