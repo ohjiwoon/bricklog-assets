@@ -69,7 +69,7 @@ document.addEventListener('click',e=>{const btn=e.target.closest('button');if(!b
 
 def local_image(url):
     """저장소에 있는 이미지 주소를 로컬 파일로 바꿔 읽는다. 없으면 받는다."""
-    match = re.search(r"/(ipo/.+\.png)$", url)
+    match = re.search(r"/((?:ipo|market)/.+\.png)$", url)
     path = os.path.join(ROOT, match.group(1)) if match else ""
     try:
         with open(path, "rb") as f:
