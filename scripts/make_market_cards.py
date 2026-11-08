@@ -77,7 +77,7 @@ def day_card(c, out):
 def week_card(c, out):
     H = 1180
     img = Image.new("RGBA", (W, H), BEIGE); d = ImageDraw.Draw(img)
-    header(d, img, "숫자로 보는 이번 주", c["name"], W)
+    header(d, img, "숫자로 보는 한 주", c["name"], W)
 
     bw, y = (W - 120) // 2, 190
     for i, ix in enumerate(c["indices"]):
