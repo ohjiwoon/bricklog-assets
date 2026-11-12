@@ -49,6 +49,14 @@ def split_sentences(text):
     return out
 
 
+def orange_marker(line):
+    """🟧로 시작하는 줄은 표시를 떼고 문장 전체를 오렌지로."""
+    if not line.startswith("🟧"):
+        return line
+    body = line[len("🟧"):].strip()
+    return f'<span color="orange">{body}</span>'
+
+
 def table_html(rows):
     cells = []
     for r, row in enumerate(rows):
@@ -78,11 +86,13 @@ def parse(markdown):
 
     lines = markdown.splitlines()
     i = 0
+    num, prev_list, list_kind = 0, None, None
     while i < len(lines):
         line = lines[i].strip()
         i += 1
         if not line:
             continue
+        line = re.sub(r"^>\s*", "", line)  # 인용(결론 줄)은 일반 문단으로
         image = re.fullmatch(r"!\[[^\]]*\]\((\S+)\)", line)
         if image:
             flush()
@@ -106,12 +116,20 @@ def parse(markdown):
             parsed = [r for r in parsed if not all(re.fullmatch(r":?-{3,}:?", c) for c in r)]
             buf.append(table_html(parsed))
         elif re.match(r"\d+\.\s", line):
-            buf.append(f"<p>{inline(line)}</p>")
+            num = num + 1 if prev_list == "ol" else 1  # 노션 API는 번호를 다 1로 준다
+            buf.append(f"<p>{num}. {inline(re.sub(r'^\d+\.\s+', '', line))}</p>")
+            list_kind = "ol"
         elif line.startswith("- "):
             buf.append(f"<p>· {inline(line[2:])}</p>")
+            list_kind = "ul"
         else:
-            for part in split_sentences(line):
-                buf.append(f"<p>{inline(part)}</p>{BLANK}")
+            line = orange_marker(line)
+            # 한 문단을 문장으로 나눈 조각은 빈 줄 없이 이어 붙이고, 문단 끝에만 빈 줄 하나
+            buf.append("".join(f"<p>{inline(part)}</p>" for part in split_sentences(line)) + BLANK)
+        if prev_list and not list_kind and buf and not buf[-1].startswith("<p><span style=\"font-size"):
+            # 목록이 끝난 직후 문단 앞에 빈 줄
+            last = buf.pop(); buf.append(BLANK); buf.append(last)
+        prev_list, list_kind = list_kind, None
     while buf and buf[-1] == "<hr>":  # 글 맨 끝의 구분선도 뺀다
         buf.pop()
     flush()
