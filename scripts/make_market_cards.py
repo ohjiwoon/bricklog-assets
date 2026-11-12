@@ -183,7 +183,9 @@ def trend_card(c, out):
 
 
 def sector_card(c, out, cols=3):
-    """데일리: 섹터·테마 칸을 cols열 격자로(칸마다 이름·이유 + 대장 종목 3~4개), 아래에 늘 보는 섹터 칩."""
+    """데일리: 섹터·테마 칸을 cols열 격자로(칸마다 이름·이유 + 대장 종목 3~4개), 아래에 늘 보는 섹터 칩.
+
+    칸은 3~6개. 오른 종목 3개 이상에 대장주가 +5% 이상인 묶음만 넣고, 모자라면 6칸을 채우지 않는다."""
     gap, top = 24, 190
     cw = (W - 80 - gap * (cols - 1)) // cols
     nrows = -(-len(c["sectors"]) // cols)
@@ -201,12 +203,11 @@ def sector_card(c, out, cols=3):
         y = top + (i // cols) * (ch + gap)
         lead = i == 0
         rr(d, (x, y, x + cw, y + ch), 24, fill=WHITE, outline=RED if lead else LINE, width=4 if lead else 2)
-        # 꼬리표: 섹터/테마, 첫 칸은 오늘의 주도
-        tag = ("주도 " if lead else "") + s.get("kind", "섹터")
-        tf = F("Bold", 20)
-        tw = d.textlength(tag, font=tf)
-        rr(d, (x + 22, y + 20, x + 22 + tw + 24, y + 52), 16, fill=RED if lead else BROWN)
-        d.text((x + 34, y + 24), tag, font=tf, fill=WHITE)
+        if lead:  # 섹터·테마는 구분하지 않고, 첫 칸에만 '오늘의 주도' 꼬리표
+            tf = F("Bold", 20)
+            tw = d.textlength("오늘의 주도", font=tf)
+            rr(d, (x + 22, y + 20, x + 22 + tw + 24, y + 52), 16, fill=RED)
+            d.text((x + 34, y + 24), "오늘의 주도", font=tf, fill=WHITE)
         name_font = F("ExtraBold", fit(d, s["name"], "ExtraBold", nf.size, cw - 44))
         d.text((x + 22, y + 62), s["name"], font=name_font, fill=BROWN)
         if s.get("why"):
