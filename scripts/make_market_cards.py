@@ -182,52 +182,71 @@ def trend_card(c, out):
     img.convert("RGB").save(f"{out}/card_trend.png")
 
 
+def won(eok):
+    """억 원 → '21.5조' / '8,570억'."""
+    return f"{eok / 10000:.1f}조" if abs(eok) >= 10000 else f"{eok:,.0f}억"
+
+
 def numbers_card(c, out):
-    """데일리: 지수 두 칸 + 투자자별 순매수(억 원) + 거래대금."""
+    """데일리: 지수(등락률·전일 대비 포인트) + 시장별 투자자 순매수 막대 + 거래대금(합계·전일 대비)."""
     t = c["today"]
-    H = 1040
+    H = 1250
     img = Image.new("RGBA", (W, H), BEIGE); d = ImageDraw.Draw(img)
     header(d, img, "오늘 숫자", c["name"], W)
 
     bw, y = (W - 120) // 2, 190
     for i, ix in enumerate(t["indices"]):
         x = 40 + i * (bw + 40)
-        rr(d, (x, y, x + bw, y + 230), 24, fill=WHITE, outline=LINE, width=3)
+        rr(d, (x, y, x + bw, y + 250), 24, fill=WHITE, outline=LINE, width=3)
         d.text((x + 36, y + 28), ix["name"], font=F("ExtraBold", 34), fill=BROWN)
-        d.text((x + 36, y + 78), pct(ix["day"]), font=F("Black", 72), fill=color(ix["day"]))
-        d.text((x + 36, y + 170), f"종가 {ix['close']}", font=F("SemiBold", 28), fill=BROWN)
+        d.text((x + 36, y + 76), pct(ix["day"]), font=F("Black", 72), fill=color(ix["day"]))
+        arrow = "▲" if ix["points"] > 0 else "▼"
+        d.text((x + 36, y + 168), f"{arrow} {abs(ix['points']):,.2f}p", font=F("ExtraBold", 30), fill=color(ix["points"]))
+        d.text((x + 36, y + 208), f"종가 {ix['close']}", font=F("SemiBold", 24), fill=MUTED)
 
-    # 투자자별 순매수: 행은 개인·외국인·기관, 열은 코스피·코스닥
-    y = 460
-    d.text((40, y), "누가 사고 팔았나 (억 원)", font=F("ExtraBold", 32), fill=BROWN)
+    # 투자자별 순매수: 시장마다 가운데 0 기준 막대, 산 쪽 빨강·판 쪽 파랑
+    y = 480
+    d.text((40, y), "누가 사고 팔았나", font=F("ExtraBold", 32), fill=BROWN)
+    d.text((300, y + 8), "억 원 · 오른쪽 순매수, 왼쪽 순매도", font=F("Medium", 22), fill=MUTED)
     y += 60
-    rr(d, (40, y, W - 40, y + 300), 24, fill=WHITE, outline=LINE, width=2)
-    cols = [x["name"] for x in t["indices"]]
-    cx = [560, 860]
-    for j, name in enumerate(cols):
-        tw = d.textlength(name, font=F("SemiBold", 26))
-        d.text((cx[j] - tw / 2, y + 22), name, font=F("SemiBold", 26), fill=MUTED)
-    for k, who in enumerate(("개인", "외국인", "기관")):
-        ry = y + 80 + k * 70
-        d.text((80, ry), who, font=F("ExtraBold", 34), fill=BROWN)
-        for j, name in enumerate(cols):
-            v = t["flows"][name][k]
+    top = max(abs(v) for vals in t["flows"].values() for v in vals)
+    for i, ix in enumerate(t["indices"]):
+        x = 40 + i * (bw + 40)
+        rr(d, (x, y, x + bw, y + 300), 24, fill=WHITE, outline=LINE, width=2)
+        d.text((x + 28, y + 20), ix["name"], font=F("ExtraBold", 28), fill=BROWN)
+        # 이름 | 막대(가운데 0) | 금액 오른쪽 정렬: 숫자가 막대·이름과 겹치지 않게 칸을 나눈다
+        left, right = x + 120, x + bw - 130
+        mid, half = (left + right) // 2, (right - left) // 2
+        d.line((mid, y + 70, mid, y + 280), fill=LINE, width=2)
+        for k, who in enumerate(("개인", "외국인", "기관")):
+            v = t["flows"][ix["name"]][k]
+            ry = y + 78 + k * 68
+            d.text((x + 28, ry + 8), who, font=F("SemiBold", 26), fill=BROWN)
+            L = max(int(half * abs(v) / top), 6)
+            box = (mid, ry + 4, mid + L, ry + 40) if v > 0 else (mid - L, ry + 4, mid, ry + 40)
+            rr(d, box, 8, fill=color(v))
             label = f"{v:+,}"
-            tw = d.textlength(label, font=F("ExtraBold", 36))
-            d.text((cx[j] - tw / 2, ry - 2), label, font=F("ExtraBold", 36), fill=color(v))
+            lf = F("ExtraBold", 26)
+            d.text((x + bw - 28 - d.textlength(label, font=lf), ry + 7), label, font=lf, fill=color(v))
 
-    # 거래대금: 시장별 칩, 전일 대비가 있으면 함께
-    y = 862
+    # 거래대금: 코스피·코스닥·합계, 전일 대비 증감
+    y = 900
     d.text((40, y), "거래대금", font=F("ExtraBold", 32), fill=BROWN)
-    x, y = 40, y + 60
-    for name, value, change in t["value"]:
-        label = f"{name} {value}" + (f" ({change})" if change else "")
-        tw = d.textlength(label, font=F("SemiBold", 30))
-        if x + tw + 48 > W - 40:
-            x, y = 40, y + 72
-        rr(d, (x, y, x + tw + 48, y + 60), 30, fill=BROWN)
-        d.text((x + 24, y + 12), label, font=F("SemiBold", 30), fill=WHITE)
-        x += tw + 64
+    y += 60
+    cells = t["value"]
+    cw = (W - 80 - 24 * (len(cells) - 1)) // len(cells)
+    for i, (name, now, prev) in enumerate(cells):
+        x = 40 + i * (cw + 24)
+        total = name == "합계"
+        rr(d, (x, y, x + cw, y + 200), 24, fill=BROWN if total else WHITE, outline=LINE, width=2)
+        fg = WHITE if total else BROWN
+        d.text((x + 28, y + 22), name, font=F("SemiBold", 26), fill="#F3D9B8" if total else MUTED)
+        d.text((x + 28, y + 62), won(now), font=F("Black", 56), fill=fg)
+        if prev:
+            diff = now - prev
+            line = f"{'▲' if diff > 0 else '▼'} {won(abs(diff))} ({diff / prev * 100:+.0f}%)"
+            d.text((x + 28, y + 146), "전일 대비 " + line, font=F("SemiBold", 22),
+                   fill=fg if total else color(diff))
     img.convert("RGB").save(f"{out}/card_numbers.png")
 
 
