@@ -49,6 +49,8 @@ def number(text):
 
 def stage(ipo, day):
     sub, demand, listing = ipo["subscription"], ipo["demand"], ipo["listing"]
+    if ipo.get("withdrawn"):
+        return "철회"
     if listing and listing[0] <= day:
         return "상장 완료"
     if sub and sub[-1] < day:
@@ -112,6 +114,7 @@ def merge(ipo, dart):
         if key != "underwriter" and ipo.get(key) not in (None, "", []) and ipo[key] != value:
             print("DART≠38", ipo["name"], key, ipo[key], "→", value)
         out[key] = value
+    out["withdrawn"] = bool(dart.get("withdrawn"))
     return out
 
 
@@ -175,11 +178,11 @@ def sync_calendar(day, posts):
     except SystemExit as e:  # 38이 막히면 있던 종목만 DART로 갱신한다
         print("38 목록 실패:", e)
         targets, blocked = [], True
-    # 목록에서 빠졌어도 상장 전이거나 상장 1주일 이내인 종목은 계속 갱신한다
+    # 목록에서 빠졌어도 상장 전이거나 상장 1주일 이내인 종목은 계속 갱신한다. 철회한 종목은 한 번 표시하면 끝
     for no, row in rows.items():
         listing = (row["properties"]["상장일"]["date"] or {}).get("start")
         recent = listing is None or dt.date.fromisoformat(listing) >= day - dt.timedelta(days=7)
-        if no not in targets and recent and row["properties"]["단계"]["select"]["name"] != "상장 완료":
+        if no not in targets and recent and row["properties"]["단계"]["select"]["name"] not in ("상장 완료", "철회"):
             targets.append(no)
     ipos = []
     for no in targets:
@@ -211,6 +214,10 @@ def events(ipos, posts):
     """통합 달력에 넣을 일정. 색은 '종류' 선택값과 제목 앞 네모로 구분한다."""
     out = {}
     for i in ipos:
+        if i["stage"] == "철회":  # 청약 자리에 철회만 남기고 결과·상장 일정은 지운다
+            if i["subscription"]:
+                out[f"청약:{i['no']}"] = ("철회", f"⬛ 철회 {i['name']}", i["subscription"][:1], i["name"])
+            continue
         if i["subscription"]:
             out[f"청약:{i['no']}"] = ("청약", f"🟥 청약 {i['name']}", i["subscription"], i["name"])
         if i["demand"]:
@@ -240,9 +247,10 @@ def sync_events(ipos, posts):
             call("PATCH", f"/pages/{current[key]['id']}", {"properties": props})
         else:
             call("POST", "/pages", {"parent": {"database_id": EVENTS_DB}, "properties": props})
-    # 발행일이 지워진 글만 정리한다. 갱신 대상에서 빠진 지난 공모주 일정은 기록으로 남긴다
+    # 발행일이 지워진 글과 철회 종목의 남은 일정만 정리한다. 갱신 대상에서 빠진 지난 공모주 일정은 기록으로 남긴다
+    withdrawn = {f":{i['no']}" for i in ipos if i["stage"] == "철회"}
     for key, row in current.items():
-        if key.startswith("발행:") and key not in wanted:
+        if key not in wanted and (key.startswith("발행:") or key[key.find(":"):] in withdrawn):
             call("PATCH", f"/pages/{row['id']}", {"archived": True})
 
 
@@ -292,6 +300,7 @@ def brick_record(posts):
 
 
 def summary(ipos, posts, day):
+    ipos = [i for i in ipos if i["stage"] != "철회"]
     status = [(p, (p["properties"]["상태"]["status"] or {}).get("name")) for p in posts]
     published = [p for p, s in status if s == DONE]
     month = [p for p in published if ((p["properties"]["발행일"]["date"] or {}).get("start") or "")[:7] == day.isoformat()[:7]]

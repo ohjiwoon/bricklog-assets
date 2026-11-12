@@ -167,7 +167,8 @@ def detail(name):
     out = {"source": f"DART {rows[0]['corp_name']}", "corp_code": corp, "name": rows[0]["corp_name"],
            "subscription": korean_dates(general.get("sbd")), "refund": korean_dates(general.get("pymd")),
            "underwriter": ", ".join(dict.fromkeys(leads)), "shares": won(shares) if shares and shares != "-" else None,
-           "band": "", "offer": None, "demand": [], "competition": None, "lockup": None, "rcept_no": None}
+           "band": "", "offer": None, "demand": [], "competition": None, "lockup": None, "rcept_no": None,
+           "withdrawn": any("철회" in r["report_nm"] for r in rows)}
     # 정정 신고서에는 정정 전 밴드도 같이 적혀 있어, 주요정보 API의 모집가액(밴드 하단)과 맞는 것만 쓴다.
     # 투자설명서·발행실적보고서는 건너뛰고 본문이 있는 가장 최근 증권신고서를 읽는다
     for r in (r for r in rows if "증권신고서" in r["report_nm"]):
