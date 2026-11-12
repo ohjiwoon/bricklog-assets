@@ -124,9 +124,14 @@ def parse(markdown):
             buf.append(f"<p>· {inline(line[2:])}</p>")
             list_kind = "ul"
         else:
-            line = orange_marker(line)
+            orange = line.startswith("🟧")
+            if orange:  # 표시를 떼고, 나눈 조각마다 오렌지·굵게를 따로 씌운다
+                line = re.sub(r"</?b>|\*\*", "", line[len("🟧"):].strip())
+            parts = split_sentences(line)
+            if orange:
+                parts = [f'<span color="orange"><b>{part}</b></span>' for part in parts]
             # 한 문단을 문장으로 나눈 조각은 빈 줄 없이 이어 붙이고, 문단 끝에만 빈 줄 하나
-            buf.append("".join(f"<p>{inline(part)}</p>" for part in split_sentences(line)) + BLANK)
+            buf.append("".join(f"<p>{inline(part)}</p>" for part in parts) + BLANK)
         heading = '<p><span style="font-size'
         if prev_list and not list_kind and buf and not buf[-1].startswith(heading):
             # 목록이 끝난 직후 문단 앞에 빈 줄
