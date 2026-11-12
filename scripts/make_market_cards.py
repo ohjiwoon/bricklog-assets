@@ -182,6 +182,55 @@ def trend_card(c, out):
     img.convert("RGB").save(f"{out}/card_trend.png")
 
 
+def numbers_card(c, out):
+    """데일리: 지수 두 칸 + 투자자별 순매수(억 원) + 거래대금."""
+    t = c["today"]
+    H = 1040
+    img = Image.new("RGBA", (W, H), BEIGE); d = ImageDraw.Draw(img)
+    header(d, img, "오늘 숫자", c["name"], W)
+
+    bw, y = (W - 120) // 2, 190
+    for i, ix in enumerate(t["indices"]):
+        x = 40 + i * (bw + 40)
+        rr(d, (x, y, x + bw, y + 230), 24, fill=WHITE, outline=LINE, width=3)
+        d.text((x + 36, y + 28), ix["name"], font=F("ExtraBold", 34), fill=BROWN)
+        d.text((x + 36, y + 78), pct(ix["day"]), font=F("Black", 72), fill=color(ix["day"]))
+        d.text((x + 36, y + 170), f"종가 {ix['close']}", font=F("SemiBold", 28), fill=BROWN)
+
+    # 투자자별 순매수: 행은 개인·외국인·기관, 열은 코스피·코스닥
+    y = 460
+    d.text((40, y), "누가 사고 팔았나 (억 원)", font=F("ExtraBold", 32), fill=BROWN)
+    y += 60
+    rr(d, (40, y, W - 40, y + 300), 24, fill=WHITE, outline=LINE, width=2)
+    cols = [x["name"] for x in t["indices"]]
+    cx = [560, 860]
+    for j, name in enumerate(cols):
+        tw = d.textlength(name, font=F("SemiBold", 26))
+        d.text((cx[j] - tw / 2, y + 22), name, font=F("SemiBold", 26), fill=MUTED)
+    for k, who in enumerate(("개인", "외국인", "기관")):
+        ry = y + 80 + k * 70
+        d.text((80, ry), who, font=F("ExtraBold", 34), fill=BROWN)
+        for j, name in enumerate(cols):
+            v = t["flows"][name][k]
+            label = f"{v:+,}"
+            tw = d.textlength(label, font=F("ExtraBold", 36))
+            d.text((cx[j] - tw / 2, ry - 2), label, font=F("ExtraBold", 36), fill=color(v))
+
+    # 거래대금: 시장별 칩, 전일 대비가 있으면 함께
+    y = 862
+    d.text((40, y), "거래대금", font=F("ExtraBold", 32), fill=BROWN)
+    x, y = 40, y + 60
+    for name, value, change in t["value"]:
+        label = f"{name} {value}" + (f" ({change})" if change else "")
+        tw = d.textlength(label, font=F("SemiBold", 30))
+        if x + tw + 48 > W - 40:
+            x, y = 40, y + 72
+        rr(d, (x, y, x + tw + 48, y + 60), 30, fill=BROWN)
+        d.text((x + 24, y + 12), label, font=F("SemiBold", 30), fill=WHITE)
+        x += tw + 64
+    img.convert("RGB").save(f"{out}/card_numbers.png")
+
+
 def sector_card(c, out, cols=3):
     """데일리: 섹터·테마 칸을 cols열 격자로(칸마다 이름·이유 + 대장 종목 3~4개), 아래에 늘 보는 섹터 칩.
 
@@ -191,7 +240,7 @@ def sector_card(c, out, cols=3):
     nrows = -(-len(c["sectors"]) // cols)
     most = max(len(s["leaders"]) for s in c["sectors"])
     ch = 150 + most * 52
-    H = top + nrows * (ch + gap) + (170 if c.get("watch") else 0) + 70
+    H = top + nrows * (ch + gap) + (170 if c.get("watch") else 0) + 30
     img = Image.new("RGBA", (W, H), BEIGE); d = ImageDraw.Draw(img)
     header(d, img, "오늘의 주도 섹터·테마", c["name"], W)
     small = cols >= 3
@@ -232,7 +281,6 @@ def sector_card(c, out, cols=3):
             rr(d, (x, y, x + tw + 40, y + 48), 24, fill=color(v))
             d.text((x + 20, y + 9), label, font=F("SemiBold", 26), fill=WHITE)
             x += tw + 56
-    d.text((40, H - 50), c["source"], font=F("Medium", 22), fill=MUTED)
     img.convert("RGB").save(f"{out}/card_sector.png")
 
 
@@ -248,7 +296,9 @@ def main(path):
         trend_card(c, out)
     elif "indices" in c:  # 큰 날 시황
         day_card(c, out)
-    if "sectors" in c:  # 데일리 시황
+    if "today" in c:  # 데일리 시황
+        numbers_card(c, out)
+    if "sectors" in c:
         sector_card(c, out, c.get("grid_cols", 3))
     print("saved to", out)
 
