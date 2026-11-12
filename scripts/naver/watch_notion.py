@@ -13,6 +13,7 @@ import getpass
 import json
 import os
 import plistlib
+import re
 import shutil
 import subprocess
 import sys
@@ -126,7 +127,12 @@ def make_page(page):
     props = page["properties"]
     title = plain(props["제목"])
     status = (props["상태"].get("select") or props["상태"].get("status") or {}).get("name", "")
-    post = parse(page_to_md(page["id"]))
+    md = page_to_md(page["id"])
+    # 노션에 직접 올린 이미지 주소는 1시간 뒤 만료돼 네이버 글에서 깨진다. 깃허브 주소만 받는다
+    expiring = [u for u in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", md) if "raw.githubusercontent.com" not in u]
+    if expiring:
+        raise ValueError(f"깃허브가 아닌 이미지 {len(expiring)}장: 노션 이미지를 raw.githubusercontent 주소로 바꾸세요")
+    post = parse(md)
     os.makedirs(PAGES, exist_ok=True)
     # 같은 날 만든 노션 페이지는 ID 앞 8자리가 같아서, 전체 ID로 파일 이름을 짓는다
     path = os.path.join(PAGES, page["id"].replace("-", "") + ".copy.html")
