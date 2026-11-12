@@ -12,7 +12,7 @@ import sys
 
 from PIL import Image, ImageDraw
 
-from make_cards import BEIGE, BROWN, LINE, MUTED, RED, ROOT, WHITE, F, ensure_font, header, rr, thumbnail
+from make_cards import BEIGE, BROWN, LINE, MUTED, RED, ROOT, WHITE, F, ensure_font, fit, header, rr, thumbnail
 
 W = 1080
 DOWN = "#2F6FDB"  # 국내 시세 관례: 하락 파랑, 상승 빨강
@@ -182,6 +182,50 @@ def trend_card(c, out):
     img.convert("RGB").save(f"{out}/card_trend.png")
 
 
+def sector_card(c, out):
+    """데일리: 주도 테마 한 줄 + 상승 섹터별 대장 종목 + 주력 섹터 상태."""
+    rows = sum(len(s["leaders"]) for s in c["sectors"])
+    H = 420 + len(c["sectors"]) * 96 + rows * 64 + (150 if c.get("watch") else 0)
+    img = Image.new("RGBA", (W, H), BEIGE); d = ImageDraw.Draw(img)
+    header(d, img, "오늘의 주도 섹터", c["name"], W)
+
+    y = 190
+    theme = c.get("theme") or "뚜렷한 테마 없음"
+    rr(d, (40, y, W - 40, y + 100), 24, fill=WHITE, outline=LINE, width=3)
+    d.text((76, y + 28), "주도 테마", font=F("SemiBold", 32), fill=MUTED)
+    d.text((250, y + 22), theme, font=F("ExtraBold", fit(d, theme, "ExtraBold", 44, W - 330)), fill=BROWN)
+
+    y += 140
+    for s in c["sectors"]:
+        d.text((40, y), s["name"], font=F("ExtraBold", 36), fill=BROWN)
+        if s.get("why"):
+            tx = 60 + d.textlength(s["name"], font=F("ExtraBold", 36))
+            d.text((tx, y + 8), s["why"], font=F("SemiBold", 26), fill=MUTED)
+        y += 66
+        for name, v in s["leaders"]:
+            rr(d, (40, y, W - 40, y + 54), 14, fill=WHITE)
+            d.text((70, y + 10), name, font=F("SemiBold", 30), fill=BROWN)
+            label = "상한가" if v >= 29.5 else f"{v:+.1f}%"  # 가격제한폭 30%는 호가 단위 때문에 29.9%대로 찍힌다
+            lw = d.textlength(label, font=F("ExtraBold", 32))
+            d.text((W - 76 - lw, y + 8), label, font=F("ExtraBold", 32), fill=color(v))
+            y += 64
+        y += 30
+
+    if c.get("watch"):  # 늘 보는 섹터가 오늘 어땠는지: 빨강 강세, 파랑 약세
+        d.text((40, y), "늘 보는 섹터", font=F("ExtraBold", 30), fill=BROWN)
+        x, y = 40, y + 52
+        for name, v in c["watch"]:
+            label = f"{name} {'▲' if v > 0 else '▼'}"
+            tw = d.textlength(label, font=F("SemiBold", 26))
+            if x + tw + 40 > W - 40:
+                x, y = 40, y + 60
+            rr(d, (x, y, x + tw + 40, y + 48), 24, fill=color(v))
+            d.text((x + 20, y + 9), label, font=F("SemiBold", 26), fill=WHITE)
+            x += tw + 56
+    d.text((40, H - 60), c["source"], font=F("Medium", 22), fill=MUTED)
+    img.convert("RGB").save(f"{out}/card_sector.png")
+
+
 def main(path):
     ensure_font()
     with open(path, encoding="utf-8") as f:
@@ -194,6 +238,8 @@ def main(path):
         trend_card(c, out)
     elif "indices" in c:  # 큰 날 시황
         day_card(c, out)
+    if "sectors" in c:  # 데일리 시황
+        sector_card(c, out)
     print("saved to", out)
 
 
