@@ -128,7 +128,8 @@ def make_page(page):
     status = (props["상태"].get("select") or props["상태"].get("status") or {}).get("name", "")
     post = parse(page_to_md(page["id"]))
     os.makedirs(PAGES, exist_ok=True)
-    path = os.path.join(PAGES, page["id"].replace("-", "")[:8] + ".copy.html")
+    # 같은 날 만든 노션 페이지는 ID 앞 8자리가 같아서, 전체 ID로 파일 이름을 짓는다
+    path = os.path.join(PAGES, page["id"].replace("-", "") + ".copy.html")
     with open(path, "w", encoding="utf-8") as f:
         f.write(build(post, title, WARNING if status == "수치 확인 필요" else ""))
     return title, path
