@@ -18,6 +18,7 @@ import shutil
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -119,6 +120,28 @@ def page_to_md(page_id):
     return "\n\n".join(md for md in (block_to_md(b) for b in children(page_id)) if md)
 
 
+RAW = "https://raw.githubusercontent.com/ohjiwoon/bricklog-assets/"
+
+
+def pin_images(md):
+    """깃허브 이미지 주소의 main을 그 파일의 마지막 커밋으로 바꾼다.
+    네이버는 이미지 주소를 그대로 불러오므로, main이면 나중에 같은 이름으로 카드를 다시 만들 때 발행된 글 그림도 바뀐다.
+    백그라운드에서는 저장소 폴더를 못 읽어 GitHub API로 커밋을 찾는다. 실패하면 main 주소를 그대로 둔다."""
+    def pin(m):
+        path = m.group(1)
+        try:
+            url = ("https://api.github.com/repos/ohjiwoon/bricklog-assets/commits?sha=main&per_page=1&path="
+                   + urllib.parse.quote(path))
+            req = urllib.request.Request(url, headers={"User-Agent": "bricklog", "Accept": "application/vnd.github+json"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                sha = json.load(r)[0]["sha"]
+        except (OSError, ValueError, KeyError, IndexError) as e:
+            print("커밋 고정 실패:", path, e)
+            return m.group(0)
+        return f"{RAW}{sha}/{path}"
+    return re.sub(re.escape(RAW) + r"main/([^)\s?]+\.png)(?:\?[^)\s]*)?", pin, md)
+
+
 def plain(prop):
     return "".join(t["plain_text"] for t in prop.get(prop["type"], []))
 
@@ -132,7 +155,7 @@ def make_page(page):
     expiring = [u for u in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", md) if "raw.githubusercontent.com" not in u]
     if expiring:
         raise ValueError(f"깃허브가 아닌 이미지 {len(expiring)}장: 노션 이미지를 raw.githubusercontent 주소로 바꾸세요")
-    post = parse(md)
+    post = parse(pin_images(md))
     os.makedirs(PAGES, exist_ok=True)
     # 같은 날 만든 노션 페이지는 ID 앞 8자리가 같아서, 전체 ID로 파일 이름을 짓는다
     path = os.path.join(PAGES, page["id"].replace("-", "") + ".copy.html")
