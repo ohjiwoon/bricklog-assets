@@ -190,7 +190,7 @@ def won(eok):
 def numbers_card(c, out):
     """데일리: 지수(등락률·전일 대비 포인트) + 시장별 투자자 순매수 막대 + 거래대금(합계·전일 대비)."""
     t = c["today"]
-    H = 1250
+    H = 1270
     img = Image.new("RGBA", (W, H), BEIGE); d = ImageDraw.Draw(img)
     header(d, img, "오늘 숫자", c["name"], W)
 
@@ -238,14 +238,15 @@ def numbers_card(c, out):
     for i, (name, now, prev) in enumerate(cells):
         x = 40 + i * (cw + 24)
         total = name == "합계"
-        rr(d, (x, y, x + cw, y + 200), 24, fill=BROWN if total else WHITE, outline=LINE, width=2)
+        rr(d, (x, y, x + cw, y + 220), 24, fill=BROWN if total else WHITE, outline=LINE, width=2)
         fg = WHITE if total else BROWN
-        d.text((x + 28, y + 22), name, font=F("SemiBold", 26), fill="#F3D9B8" if total else MUTED)
-        d.text((x + 28, y + 62), won(now), font=F("Black", 56), fill=fg)
-        if prev:
+        d.text((x + 24, y + 20), name, font=F("SemiBold", 26), fill="#F3D9B8" if total else MUTED)
+        d.text((x + 24, y + 56), won(now), font=F("Black", fit(d, won(now), "Black", 52, cw - 48)), fill=fg)
+        if prev:  # 칸이 좁아 '전일 대비'와 증감을 두 줄로 나눈다
             diff = now - prev
-            line = f"{'▲' if diff > 0 else '▼'} {won(abs(diff))} ({diff / prev * 100:+.0f}%)"
-            d.text((x + 28, y + 146), "전일 대비 " + line, font=F("SemiBold", 22),
+            d.text((x + 24, y + 128), "전일 대비", font=F("Medium", 20), fill="#F3D9B8" if total else MUTED)
+            line = f"{'▲' if diff > 0 else '▼'} {won(abs(diff))} {diff / prev * 100:+.0f}%"
+            d.text((x + 24, y + 158), line, font=F("ExtraBold", fit(d, line, "ExtraBold", 26, cw - 48)),
                    fill=fg if total else color(diff))
     img.convert("RGB").save(f"{out}/card_numbers.png")
 
