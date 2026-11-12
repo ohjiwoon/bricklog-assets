@@ -117,7 +117,8 @@ def parse(markdown):
             buf.append(table_html(parsed))
         elif re.match(r"\d+\.\s", line):
             num = num + 1 if prev_list == "ol" else 1  # 노션 API는 번호를 다 1로 준다
-            buf.append(f"<p>{num}. {inline(re.sub(r'^\d+\.\s+', '', line))}</p>")
+            item = re.sub(r"^\d+\.\s+", "", line)
+            buf.append(f"<p>{num}. {inline(item)}</p>")
             list_kind = "ol"
         elif line.startswith("- "):
             buf.append(f"<p>· {inline(line[2:])}</p>")
@@ -126,7 +127,8 @@ def parse(markdown):
             line = orange_marker(line)
             # 한 문단을 문장으로 나눈 조각은 빈 줄 없이 이어 붙이고, 문단 끝에만 빈 줄 하나
             buf.append("".join(f"<p>{inline(part)}</p>" for part in split_sentences(line)) + BLANK)
-        if prev_list and not list_kind and buf and not buf[-1].startswith("<p><span style=\"font-size"):
+        heading = '<p><span style="font-size'
+        if prev_list and not list_kind and buf and not buf[-1].startswith(heading):
             # 목록이 끝난 직후 문단 앞에 빈 줄
             last = buf.pop(); buf.append(BLANK); buf.append(last)
         prev_list, list_kind = list_kind, None
