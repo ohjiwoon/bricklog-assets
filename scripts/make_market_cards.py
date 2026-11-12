@@ -250,6 +250,33 @@ def numbers_card(c, out):
     img.convert("RGB").save(f"{out}/card_numbers.png")
 
 
+def schedule_card(c, out):
+    """데일리: 이번 주·다음 주 주요 일정(한국 시간). key=true인 일정은 빨간 테두리로 강조."""
+    rows = c["schedule"]
+    weeks = list(dict.fromkeys(r["week"] for r in rows))
+    H = 190 + len(weeks) * 84 + len(rows) * 120 + 16
+    img = Image.new("RGBA", (W, H), BEIGE); d = ImageDraw.Draw(img)
+    header(d, img, "꼭 볼 일정", c["name"], W)
+    y = 190
+    for i, week in enumerate(weeks):
+        y += 24 if i else 0
+        d.text((40, y), week, font=F("ExtraBold", 30), fill=BROWN)
+        y += 60
+        for r in (r for r in rows if r["week"] == week):
+            key = r.get("key")
+            rr(d, (40, y, W - 40, y + 104), 22, fill=WHITE, outline=RED if key else LINE, width=4 if key else 2)
+            # 왼쪽 날짜 칸
+            rr(d, (56, y + 14, 196, y + 90), 16, fill=RED if key else BROWN)
+            for k, (text, font) in enumerate(((r["date"], F("ExtraBold", 30)), (r["wd"], F("Medium", 20)))):
+                tw = d.textlength(text, font=font)
+                d.text((126 - tw / 2, y + 20 + k * 40), text, font=font, fill=WHITE)
+            title = r["title"]
+            d.text((226, y + 16), title, font=F("ExtraBold", fit(d, title, "ExtraBold", 32, W - 300)), fill=BROWN)
+            d.text((228, y + 62), r["time"], font=F("SemiBold", 24), fill=RED if key else MUTED)
+            y += 120
+    img.convert("RGB").save(f"{out}/card_schedule.png")
+
+
 def sector_card(c, out, cols=3):
     """데일리: 섹터·테마 칸을 cols열 격자로(칸마다 이름·이유 + 대장 종목 3~4개), 아래에 늘 보는 섹터 칩.
 
@@ -317,6 +344,8 @@ def main(path):
         day_card(c, out)
     if "today" in c:  # 데일리 시황
         numbers_card(c, out)
+    if "schedule" in c:
+        schedule_card(c, out)
     if "sectors" in c:
         sector_card(c, out, c.get("grid_cols", 3))
     print("saved to", out)
