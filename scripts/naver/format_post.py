@@ -94,6 +94,9 @@ def parse(markdown):
             buf.append(f'<p><span style="font-size:19px"><b>{inline(line.lstrip("# "))}</b></span></p>')
         elif re.fullmatch(r"(#\S+\s*)+", line):
             tags = [t[1:] for t in line.split()]
+        elif re.match(r"태그\s*(\([^)]*\))?\s*[:：]", line):
+            body = re.split(r"[:：]", line, 1)[1]
+            tags = [t.strip().lstrip("#") for t in re.split(r"[,\s]+", body) if t.strip().lstrip("#")]
         elif line.startswith("|"):
             rows = [line]
             while i < len(lines) and lines[i].strip().startswith("|"):
