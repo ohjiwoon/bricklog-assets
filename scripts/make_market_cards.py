@@ -182,35 +182,44 @@ def trend_card(c, out):
     img.convert("RGB").save(f"{out}/card_trend.png")
 
 
-def sector_card(c, out):
-    """데일리: 주도 테마 한 줄 + 상승 섹터별 대장 종목 + 주력 섹터 상태."""
-    rows = sum(len(s["leaders"]) for s in c["sectors"])
-    H = 420 + len(c["sectors"]) * 96 + rows * 64 + (150 if c.get("watch") else 0)
+def sector_card(c, out, cols=3):
+    """데일리: 섹터·테마 칸을 cols열 격자로(칸마다 이름·이유 + 대장 종목 3~4개), 아래에 늘 보는 섹터 칩."""
+    gap, top = 24, 190
+    cw = (W - 80 - gap * (cols - 1)) // cols
+    nrows = -(-len(c["sectors"]) // cols)
+    most = max(len(s["leaders"]) for s in c["sectors"])
+    ch = 150 + most * 52
+    H = top + nrows * (ch + gap) + (170 if c.get("watch") else 0) + 70
     img = Image.new("RGBA", (W, H), BEIGE); d = ImageDraw.Draw(img)
-    header(d, img, "오늘의 주도 섹터", c["name"], W)
+    header(d, img, "오늘의 주도 섹터·테마", c["name"], W)
+    small = cols >= 3
+    nf, rf, wf = (F("ExtraBold", 32), F("SemiBold", 24), F("Medium", 20)) if small else \
+                 (F("ExtraBold", 38), F("SemiBold", 28), F("Medium", 24))
 
-    y = 190
-    theme = c.get("theme") or "뚜렷한 테마 없음"
-    rr(d, (40, y, W - 40, y + 100), 24, fill=WHITE, outline=LINE, width=3)
-    d.text((76, y + 28), "주도 테마", font=F("SemiBold", 32), fill=MUTED)
-    d.text((250, y + 22), theme, font=F("ExtraBold", fit(d, theme, "ExtraBold", 44, W - 330)), fill=BROWN)
-
-    y += 140
-    for s in c["sectors"]:
-        d.text((40, y), s["name"], font=F("ExtraBold", 36), fill=BROWN)
+    for i, s in enumerate(c["sectors"]):
+        x = 40 + (i % cols) * (cw + gap)
+        y = top + (i // cols) * (ch + gap)
+        lead = i == 0
+        rr(d, (x, y, x + cw, y + ch), 24, fill=WHITE, outline=RED if lead else LINE, width=4 if lead else 2)
+        # 꼬리표: 섹터/테마, 첫 칸은 오늘의 주도
+        tag = ("주도 " if lead else "") + s.get("kind", "섹터")
+        tf = F("Bold", 20)
+        tw = d.textlength(tag, font=tf)
+        rr(d, (x + 22, y + 20, x + 22 + tw + 24, y + 52), 16, fill=RED if lead else BROWN)
+        d.text((x + 34, y + 24), tag, font=tf, fill=WHITE)
+        name_font = F("ExtraBold", fit(d, s["name"], "ExtraBold", nf.size, cw - 44))
+        d.text((x + 22, y + 62), s["name"], font=name_font, fill=BROWN)
         if s.get("why"):
-            tx = 60 + d.textlength(s["name"], font=F("ExtraBold", 36))
-            d.text((tx, y + 8), s["why"], font=F("SemiBold", 26), fill=MUTED)
-        y += 66
+            d.text((x + 24, y + 108), s["why"], font=F("Medium", fit(d, s["why"], "Medium", wf.size, cw - 44)), fill=MUTED)
+        ry = y + 146
         for name, v in s["leaders"]:
-            rr(d, (40, y, W - 40, y + 54), 14, fill=WHITE)
-            d.text((70, y + 10), name, font=F("SemiBold", 30), fill=BROWN)
             label = "상한가" if v >= 29.5 else f"{v:+.1f}%"  # 가격제한폭 30%는 호가 단위 때문에 29.9%대로 찍힌다
-            lw = d.textlength(label, font=F("ExtraBold", 32))
-            d.text((W - 76 - lw, y + 8), label, font=F("ExtraBold", 32), fill=color(v))
-            y += 64
-        y += 30
+            lw = d.textlength(label, font=rf)
+            d.text((x + cw - 22 - lw, ry), label, font=F("ExtraBold", rf.size), fill=color(v))
+            d.text((x + 22, ry), name, font=F("SemiBold", fit(d, name, "SemiBold", rf.size, cw - 66 - lw)), fill=BROWN)
+            ry += 52
 
+    y = top + nrows * (ch + gap) + 10
     if c.get("watch"):  # 늘 보는 섹터가 오늘 어땠는지: 빨강 강세, 파랑 약세
         d.text((40, y), "늘 보는 섹터", font=F("ExtraBold", 30), fill=BROWN)
         x, y = 40, y + 52
@@ -222,7 +231,7 @@ def sector_card(c, out):
             rr(d, (x, y, x + tw + 40, y + 48), 24, fill=color(v))
             d.text((x + 20, y + 9), label, font=F("SemiBold", 26), fill=WHITE)
             x += tw + 56
-    d.text((40, H - 60), c["source"], font=F("Medium", 22), fill=MUTED)
+    d.text((40, H - 50), c["source"], font=F("Medium", 22), fill=MUTED)
     img.convert("RGB").save(f"{out}/card_sector.png")
 
 
@@ -239,7 +248,7 @@ def main(path):
     elif "indices" in c:  # 큰 날 시황
         day_card(c, out)
     if "sectors" in c:  # 데일리 시황
-        sector_card(c, out)
+        sector_card(c, out, c.get("grid_cols", 3))
     print("saved to", out)
 
 
