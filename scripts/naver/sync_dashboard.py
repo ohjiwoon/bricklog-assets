@@ -198,6 +198,11 @@ def sync_calendar(day, posts):
                 continue
             ipo = from_row(rows[no])
         ipo = merge(ipo, from_dart(ipo["name"]))
+        if ipo.get("withdrawn"):  # 철회 종목은 캘린더에서 지운다. 달력 일정 정리를 위해 목록에는 넘긴다
+            if no in rows:
+                call("PATCH", f"/pages/{rows[no]['id']}", {"archived": True})
+            ipos.append(dict(ipo, no=no, stage="철회", linked=False))
+            continue
         props = properties(no, ipo, day)
         linked = my_posts(ipo["name"], posts)
         if linked:
@@ -214,9 +219,7 @@ def events(ipos, posts):
     """통합 달력에 넣을 일정. 색은 '종류' 선택값과 제목 앞 네모로 구분한다."""
     out = {}
     for i in ipos:
-        if i["stage"] == "철회":  # 청약 자리에 철회만 남기고 결과·상장 일정은 지운다
-            if i["subscription"]:
-                out[f"청약:{i['no']}"] = ("철회", f"⬛ 철회 {i['name']}", i["subscription"][:1], i["name"])
+        if i["stage"] == "철회":  # 철회 종목은 일정을 모두 지운다
             continue
         if i["subscription"]:
             out[f"청약:{i['no']}"] = ("청약", f"🟥 청약 {i['name']}", i["subscription"], i["name"])
