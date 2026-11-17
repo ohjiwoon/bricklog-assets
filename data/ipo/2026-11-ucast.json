@@ -12,7 +12,7 @@
   "brick_check": [
     {"label": "수요", "desc": "기관 경쟁률", "grade": "C", "value": "173.42 : 1"},
     {"label": "섹터", "desc": "테마", "grade": "B", "value": "5G 특화망·국방 통신"},
-    {"label": "시황", "desc": "시장 분위기", "grade": "C", "value": "이틀 연속 급락, 새내기도 흔들"},
+    {"label": "시황", "desc": "시장 분위기", "grade": "C", "value": "이틀 연속 급락, 신규 상장주도 흔들"},
     {"label": "확약", "desc": "의무보유확약", "grade": "C", "value": "0.57%"},
     {"label": "유통물량", "desc": "상장일 거래 가능", "grade": "B", "value": "약 412억 · 36.76%"}
   ],
