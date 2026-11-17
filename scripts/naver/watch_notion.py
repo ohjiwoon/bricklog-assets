@@ -15,11 +15,23 @@ import os
 import plistlib
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+
+_getaddrinfo = socket.getaddrinfo
+
+
+def _ipv4_first(*args, **kwargs):
+    # 집 네트워크에서 노션 IPv6 주소로는 연결이 안 돼 주소마다 타임아웃을 기다리다 멈춘다(2026-11-17).
+    # IPv4를 먼저 시도하고, IPv6는 뒤에 남겨 둔다. sync_dashboard도 이 모듈을 불러 같이 적용된다
+    return sorted(_getaddrinfo(*args, **kwargs), key=lambda a: a[0] != socket.AF_INET)
+
+
+socket.getaddrinfo = _ipv4_first
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from copy_page import build
